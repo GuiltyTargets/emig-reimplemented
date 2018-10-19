@@ -22,20 +22,16 @@ CLASSIFIERS = [
     'License :: OSI Approved :: MIT Software License',
     'Operating System :: OS Independent',
     'Programming Language :: Python',
-    'Programming Language :: Python :: 3.4',
-    'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
     'Topic :: Scientific/Engineering :: Bio-Informatics'
 ]
 INSTALL_REQUIRES = [
     'numpy',
     'pandas',
     'scipy',
-    'py2cytoscape',
     'rpy2',
     'scikit-learn',
-    'xlrd',
-    'openpyxl',
     'python-igraph',
     'click',
     'jinja2',
@@ -49,7 +45,7 @@ TESTS_REQUIRE = [
 ]
 ENTRY_POINTS = {
     'console_scripts': [
-        'gene_prioritization = gene_prioritization.cli:main',
+        'emig_reimplementation = emig_reimplementation.cli:main',
     ]
 }
 DEPENDENCY_LINKS = [

@@ -21,11 +21,9 @@ target.prioritization.pipeline <- function() {
     rownames(analysis) <- analysis$GeneID
     return(analysis[ , 2:6])
 
-
     ############################################################
-    ### Classify targets
+    ### Assess the performance of the method
     ############################################################
-    # assess the performance of classification method
     auc.mat <- matrix(0, nrow = 5, ncol = 10)
     for (i in 1 : 10) {
         aucs <- cross.validate(analysis)
@@ -54,18 +52,15 @@ cross.validate <- function(analysis, k.fold=5) {
 }
 
 classify.fold <- function(training, test.set){
-  training.feat <- training[, 1:4]
-  test.set.feat <- test.set[, 1:4]
-
   # training
   train_control <- trainControl(method="boot", number=100)
-  model <- train(x          = as.matrix(training.feat),
+  model <- train(x          = as.matrix(training[, 1:4]),
                  y          = training$IsTarget,
                  trControl  = train_control,
                  method     = "glm",
                  family     = "binomial")
   # calculate the likelihoods of the test set and evaluate the model
-  test.set.likelihood <- predict(model, newdata=test.set.feat, type = "prob")
+  test.set.likelihood <- predict(model, newdata=test.set[, 1:4], type = "prob")
   roc.curve   <- roc(response = test.set$IsTarget,
                      predictor = test.set.likelihood$yes,
                      levels = rev(levels(test.set$IsTarget)))
