@@ -1,0 +1,16 @@
+Package: GENHelper
+Title: Target prioritization tool
+Version: 0.1
+Authors@R: person("Özlem", "Muslu", email = "ozlemmuslu@gmail.com", role = c("aut", "cre"))
+Description: What the package does (one paragraph).
+Depends: R (>= 3.3.3)
+License: MIT License
+Encoding: UTF-8
+LazyData: true
+Imports:
+    caret (>= 6.0-76),
+    pROC (>= 1.10.0),
+    AppliedPredictiveModeling (>= 1.1-6),
+    ini (>= 0.2),
+    data.table,
+    devtools

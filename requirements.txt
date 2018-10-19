@@ -1,0 +1,19 @@
+numpy
+
+pandas
+
+python_igraph
+
+rpy2
+
+scipy
+
+scikit-learn
+
+click
+
+jinja2
+
+tqdm
+
+-e git+https://github.com/GuiltyTargets/ppi-network-annotation#egg=ppi_network_annotation
