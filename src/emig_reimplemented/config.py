@@ -21,7 +21,7 @@ def get_config(path: str) -> ConfigParser:
     cfp = ConfigParser()
     cfp.read(path)
 
-    # Read input file paths and join them with the input directory
+    # Read input file paths and join the name with the input directory path
     input_directory = cfp['paths']['input_directory']
     ppi_path = os.path.join(input_directory, cfp.get('paths', "protein_protein_interaction_graph"))
     data_path = os.path.join(input_directory, cfp.get('paths', 'differential_gene_expression'))

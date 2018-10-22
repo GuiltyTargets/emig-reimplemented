@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import pandas as pd
 from ppi_network_annotation.model.network import Network
+from ppi_network_annotation.model.neighborhood_network import NeighborhoodNetwork
 from igraph import Vertex, VertexSeq
 from scipy import sparse
 from sklearn.preprocessing import normalize
@@ -26,6 +27,7 @@ class NodeScorer:
         """
         self.ppi_network = network
         self.ppi_network.graph.simplify(combine_edges=min)
+        self.neighborhood_network = NeighborhoodNetwork(network)
 
     def score_nodes(self, feature_path: str, diff_type: str) -> None:
         """Score nodes using all network measures and write to a file.
@@ -68,10 +70,10 @@ class NodeScorer:
         :param Vertex node: Node to be scored.
         :return float: Score of the node.
         """
-        node_fc = abs(node["log2_fold_change"])
+        node_fc = abs(node["l2fc"])
         sum_fc = 0
         for n in node.neighbors():
-            sum_fc += abs(n["log2_fold_change"])
+            sum_fc += abs(n["l2fc"])
         if len(node.neighbors()) > 0:
             return 0.5 * node_fc + 0.5 * sum_fc / len(node.neighbors())
         else:
@@ -87,7 +89,7 @@ class NodeScorer:
         """
         logger.info("In interconnectivity_nodes()")
         icn_mat = self._interconnectivity_edges(diff_type, neighbor_type)
-        diff_expr = self.ppi_network._get_differentially_expressed_genes(diff_type)
+        diff_expr = self.ppi_network.get_differentially_expressed_genes(diff_type)
 
         icn = np.sum(icn_mat[diff_expr.indices, :], axis=0) / len(diff_expr)
         return list(icn)
@@ -120,7 +122,7 @@ class NodeScorer:
 
         :param degrees: Degrees of all nodes.
         :param edge: The edge for which the interconnectivity score will be calculated.
-        :param key: Differential expression type, up_regulated, down_regulated or is_diff_expressed.
+        :param key: Differential expression type, up_regulated, down_regulated or diff_expressed.
         :param neighbor_type: The degree of neighborhood relationship; direct or second-degree.
         :return: Interconnectivity score of the edge, source and target vertices of the edge
         """
@@ -128,10 +130,10 @@ class NodeScorer:
         target = self.ppi_network.graph.vs.find(edge.target)
         icn_score = 0
         if edge != -1 and (source[key] or target[key]):
-            inter = self.ppi_network.get_neighborhood_overlap(source, target, neighbor_type)
+            overlap = self.neighborhood_network.get_neighborhood_overlap(source, target, neighbor_type)
             mult_degrees = degrees[source.index] * degrees[target.index]
             if mult_degrees > 0:
-                icn_score = (2 + len(inter)) / np.sqrt(mult_degrees)
+                icn_score = (2 + len(overlap)) / np.sqrt(mult_degrees)
 
         return icn_score, source, target
 
@@ -166,8 +168,8 @@ class NodeScorer:
             prob = 1 / len(self.ppi_network.graph.vs.select(down_regulated_eq=True))
             self.ppi_network.graph.vs.select(down_regulated_eq=True)["random_walk_score"] = prob
         else:
-            prob = 1 / len(self.ppi_network.graph.vs.select(is_diff_expressed_eq=True))
-            self.ppi_network.graph.vs.select(is_diff_expressed_eq=True)["random_walk_score"] = prob
+            prob = 1 / len(self.ppi_network.graph.vs.select(diff_expressed_eq=True))
+            self.ppi_network.graph.vs.select(diff_expressed_eq=True)["random_walk_score"] = prob
 
     def score_by_network_propagation(self, diff_type: str = "all") -> list:
         """Score nodes using network propagation algorithm.
@@ -200,7 +202,7 @@ class NodeScorer:
         elif diff_type == "down":
             vertices.select(down_regulated_eq=True)["network_prop_score"] = 1
         else:
-            vertices.select(is_diff_expressed_eq=True)["network_prop_score"] = 1
+            vertices.select(diff_expressed_eq=True)["network_prop_score"] = 1
 
     def _normalize_by_degrees(self, adj: sparse.dok_matrix) -> sparse.dok_matrix:
         """Normalize an adjacency matrix based on the node degrees(Vanunu et al).
@@ -267,7 +269,7 @@ class NodeScorer:
             return self.ppi_network.graph.vs.select(up_regulated_eq=True)
         if diff_type == "down":
             return self.ppi_network.graph.vs.select(down_regulated_eq=True)
-        return self.ppi_network.graph.vs.select(is_diff_expressed_eq=True)
+        return self.ppi_network.graph.vs.select(diff_expressed_eq=True)
 
     def _get_diff_expr_key(self, diff_type: str) -> str:
         """Get the network key of different types of differentially expressed genes.
@@ -279,4 +281,4 @@ class NodeScorer:
             return "up_regulated"
         if diff_type == "down":
             return "down_regulated"
-        return "is_diff_expressed"
+        return "diff_expressed"
