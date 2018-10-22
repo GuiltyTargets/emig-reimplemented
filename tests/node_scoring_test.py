@@ -2,7 +2,7 @@
 import unittest
 
 from ppi_network_annotation.model.network import Network
-from emig_reimplemented import network_feature_extractor as feat
+from emig_reimplemented import node_scoring as feat
 from igraph import Graph
 import numpy as np
 from sklearn.preprocessing import normalize
@@ -35,7 +35,7 @@ class NetworkFeatureExtractorTest(unittest.TestCase):
     def test_neighborhood(self):
         """Test neighborhood scoring method."""
         print("+test_neighborhood")
-        extractor = feat.NetworkFeatureExtractor(self.tg)
+        extractor = feat.NodeScorer(self.tg)
         self.assertAlmostEqual(extractor.score_neighborhood(),
                                [1.75, 1.3333333333333335, 1, 1.6666666666666665,
                                 1.5, 1.5, 0])
@@ -63,7 +63,7 @@ class NetworkFeatureExtractorTest(unittest.TestCase):
         mat[4, 5] = 1.414213562
         mat[5, 4] = 1.414213562
 
-        extractor = feat.NetworkFeatureExtractor(self.tg)
+        extractor = feat.NodeScorer(self.tg)
         icn_mat = extractor._interconnectivity_edges()
 
         np.testing.assert_array_almost_equal(icn_mat, mat)
@@ -76,7 +76,7 @@ class NetworkFeatureExtractorTest(unittest.TestCase):
     def test_random_walk(self):
         """Test random walk method."""
         print("+test_random_walk")
-        extractor = feat.NetworkFeatureExtractor(self.tg)
+        extractor = feat.NodeScorer(self.tg)
         extractor._random_walk_init()
         self.assertEqual(self.tg.graph.vs["random_walk_score"],
                          [0.3333333333333333, 0, 0, 0.3333333333333333, 0,
@@ -104,7 +104,7 @@ class NetworkFeatureExtractorTest(unittest.TestCase):
     def test_network_propagation(self):
         """Test network propagation method."""
         print("+test_network_propagation")
-        extractor = feat.NetworkFeatureExtractor(self.tg)
+        extractor = feat.NodeScorer(self.tg)
         extractor._propagate_network_init()
         self.assertEqual(self.tg.graph.vs["network_prop_score"],
                          [1, 0, 0, 1, 0, 1, 0])

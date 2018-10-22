@@ -1,4 +1,4 @@
-"""This module enables gene_prioritization to be run as ``python -m gene_prioritization``."""
+"""This module enables emig-reimplemented to be run as ``python -m emig_reimplemented``."""
 
 from emig_reimplemented.cli import main
 

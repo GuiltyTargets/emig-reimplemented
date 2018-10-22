@@ -1,7 +1,6 @@
 import click
 import logging
 import os
-import time
 
 from emig_reimplemented.pipeline import rank_targets
 from emig_reimplemented.config import get_config
@@ -21,63 +20,57 @@ def main(config_path: str):
     """
     logging.basicConfig(level=logging.INFO)
 
-    start = time.time()
-
     click.secho('getting config', color='cyan')
     cfp = get_config(config_path)
 
+    # Read input file paths and assert they exist
     ppi_path = cfp['paths']['ppi_path']
     assert os.path.exists(ppi_path)
-
     data_path = cfp['paths']['data_path']
     assert os.path.exists(data_path)
+    targets_path = cfp['paths']['targets_path']
+    assert os.path.exists(targets_path)
 
-    drug_targets_path = cfp['paths']['drug_targets_path']
-    assert os.path.exists(drug_targets_path)
+    # Read the thresholds
+    min_confidence = cfp.getfloat('default', 'interaction_confidence_cutoff')
+    max_padj = cfp.getfloat('default', 'maximum_adjusted_p_value')
+    max_l2fc = cfp.getfloat('default', 'maximum_log2_fold_change')
+    min_l2fc = cfp.getfloat('default', 'minimum_log2_fold_change')
 
-    hippie_min_edge_weight = cfp.getfloat('default', 'interaction_confidence_cutoff')
-    current_disease_ids_path = cfp.get('paths', 'disease_ids')
-    disease_associations_path = cfp.get('paths', 'disease_associations')
-
-    maximum_adjusted_p_value = cfp.getfloat('default', 'maximum_adjusted_p_value')
-    maximum_log2_fold_change = cfp.getfloat('default', 'maximum_log2_fold_change')
-    minimum_log2_fold_change = cfp.getfloat('default', 'minimum_log2_fold_change')
-
-    entrez_id_header = cfp['dge']['entrez_id']
-    log_fold_change_header = cfp['dge']['log2_fold_change']
-    adjusted_p_value_header = cfp['dge']['adjusted_p_value']
-    split_char = cfp['dge']['split_character']
+    # Read the headers of the differential expression file
+    entrez_header = cfp['dge']['entrez_id']
+    l2fc_header = cfp['dge']['log2_fold_change']
+    adjp_header = cfp['dge']['adjusted_p_value']
     base_mean_header = cfp.get('dge', 'base_mean')
+    split_char = cfp['dge']['split_character']
 
+    # Read the output file paths
     feature_path = cfp.get('paths', 'feature_path')
-    auc_emig_output = cfp['paths']['auc_emig']
+    auc_path = cfp['paths']['auc_path']
 
+    # Read the differential expression type (up, down, all)
     diff_type = cfp['options']['diff_type']
-
-    del cfp
 
     click.secho('generating PPI network', color='cyan')
     network = generate_ppi_network(
         ppi_graph_path=ppi_path,
         gene_expression_file_path=data_path,
-        maximum_adjusted_p_value=maximum_adjusted_p_value,
-        maximum_log2_fold_change=maximum_log2_fold_change,
-        minimum_log2_fold_change=minimum_log2_fold_change,
-        entrez_id_header=entrez_id_header,
-        log_fold_change_header=log_fold_change_header,
-        adjusted_p_value_header=adjusted_p_value_header,
+        maximum_adjusted_p_value=max_padj,
+        maximum_log2_fold_change=max_l2fc,
+        minimum_log2_fold_change=min_l2fc,
+        entrez_id_header=entrez_header,
+        log_fold_change_header=l2fc_header,
+        adjusted_p_value_header=adjp_header,
         base_mean_header=base_mean_header,
         split_char=split_char,
-        hippie_min_edge_weight=hippie_min_edge_weight,
-        current_disease_ids_path=current_disease_ids_path,
-        disease_associations_path=disease_associations_path,
+        hippie_min_edge_weight=min_confidence,
     )
 
     click.secho('ranking targets', color='cyan')
     rank_targets(
         network=network,
-        feature_path=feature_path,
         diff_type=diff_type,
-        targets_path=drug_targets_path,
-        output_auc_path=auc_emig_output,
+        targets_path=targets_path,
+        feature_path=feature_path,
+        auc_path=auc_path,
     )

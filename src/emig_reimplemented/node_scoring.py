@@ -16,25 +16,22 @@ logger = logging.getLogger(__name__)
 np.set_printoptions(precision=3)
 
 
-# TODO: add formula to the documentation
-
-class NetworkFeatureExtractor:
+class NodeScorer:
     """Class for calculating features using interaction and differential expression information."""
 
     def __init__(self, network: Network):
-        """Construct the extractor object.
+        """Construct the object.
 
-        :param network: The graph using which the features will be calculated.
-        :param cfp: An object that includes paths, cutoffs and other necessary information.
+        :param network: The PPI network with differential gene expression annotation.
         """
         self.ppi_network = network
         self.ppi_network.graph.simplify(combine_edges=min)
 
-    def extract_features(self, feature_path: str, diff_type: str) -> None:
-        """Extract all graph-related features and write to a file.
+    def score_nodes(self, feature_path: str, diff_type: str) -> None:
+        """Score nodes using all network measures and write to a file.
 
         :param feature_path: Path to write the file.
-        :param diff_type: Differential expression type chosen by the user; all, down, or up.
+        :param diff_type: Differential expression type to be chosen by the user; all, down, or up.
         """
         logger.info("In extract_features()")
 
@@ -56,30 +53,6 @@ class NetworkFeatureExtractor:
                   encoding="utf-8",
                   sep="\t",
                   index=False)
-
-    def score_by_local_radiality(self, diff_type: str = "all"):
-        """Score by local radiality algorithm.
-
-        :param str diff_type: Differential expression type chosen by the user; all, down, or up.
-        :return list: A list of scores, sorted by node index.
-        """
-        logger.info("In score_by_local_radiality()")
-        diff_expr_genes = self.ppi_network._get_differentially_expressed_genes(diff_type)
-        scores = [self._local_radiality(gene, diff_expr_genes) for gene in
-                  self.ppi_network.graph.vs]
-        return scores
-
-    def _local_radiality(self, gene, diff_expr_genes):
-        """Calculate local radiality for one gene.
-
-        :param Vertex gene: Gene whose score will be calculated.
-        :param list diff_expr_genes: List of differentially expressed genes
-        :return: Local radiality score for gene.
-        """
-        shortest_paths = self.ppi_network.graph.get_shortest_paths(gene,
-                                                                   to=diff_expr_genes)
-        path_length_sum = sum([len(path) for path in shortest_paths])
-        return path_length_sum / len(diff_expr_genes)
 
     def score_neighborhood(self) -> list:
         """Score all nodes using neighborhood scoring algorithm.
@@ -109,6 +82,7 @@ class NetworkFeatureExtractor:
         """Score all nodes based on interconnectivity algorithm.
 
         :param str diff_type: Differential expression type chosen by the user; all, down, or up.
+        :param str neighbor_type: The degree of neighborhood relationship; direct or second-degree.
         :return list: A list of scores, sorted by node index.
         """
         logger.info("In interconnectivity_nodes()")
@@ -123,6 +97,7 @@ class NetworkFeatureExtractor:
         """Score pairs of nodes based on their shared neighborhood.
 
         :param str diff_type: Differential expression type chosen by the user; all, down, or up.
+        :param str neighbor_type: The degree of neighborhood relationship; direct or second-degree.
         :return np.ndarray: A matrix of scores for pairs.
         """
         key = self._get_diff_expr_key(diff_type)
@@ -141,6 +116,14 @@ class NetworkFeatureExtractor:
         return icn_mat
 
     def _interconnectivity_edge(self, degrees, edge, key, neighbor_type):
+        """Calculate the inteconnectivity score of one edge.
+
+        :param degrees: Degrees of all nodes.
+        :param edge: The edge for which the interconnectivity score will be calculated.
+        :param key: Differential expression type, up_regulated, down_regulated or is_diff_expressed.
+        :param neighbor_type: The degree of neighborhood relationship; direct or second-degree.
+        :return: Interconnectivity score of the edge, source and target vertices of the edge
+        """
         source = self.ppi_network.graph.vs.find(edge.source)
         target = self.ppi_network.graph.vs.find(edge.target)
         icn_score = 0
@@ -161,8 +144,9 @@ class NetworkFeatureExtractor:
         logger.info("In random_walk()")
         self._random_walk_init(diff_type)
 
-        adj = sparse.coo_matrix(np.array(self.ppi_network.graph.get_adjacency().data,
-                                         dtype="float64"))
+        adj = sparse.coo_matrix(
+            np.array(self.ppi_network.graph.get_adjacency().data, dtype="float64")
+        )
         adj = normalize(adj, norm="l1", axis=0)  # column normalized
         return self._walk_randomly(adj, "random_walk_score", 0.5)
 
@@ -185,20 +169,6 @@ class NetworkFeatureExtractor:
             prob = 1 / len(self.ppi_network.graph.vs.select(is_diff_expressed_eq=True))
             self.ppi_network.graph.vs.select(is_diff_expressed_eq=True)["random_walk_score"] = prob
 
-    def score_by_diffusion(self):
-        """Score nodes using heat diffusion algorithm.
-
-        :return list: A list of scores, sorted by node index.
-        """
-        logger.info("In score_by_diffusion()")
-        self.ppi_network.graph.vs["diffusion_score"] = np.absolute(
-            self.ppi_network.graph.vs["log2_fold_change"])
-
-        adj = sparse.coo_matrix(np.array(self.ppi_network.graph.get_adjacency().data,
-                                         dtype="float64"))
-        adj = normalize(adj, norm="l1", axis=0)  # column normalized
-        return self._walk_randomly(adj, "diffusion_score", 0.5)
-
     def score_by_network_propagation(self, diff_type: str = "all") -> list:
         """Score nodes using network propagation algorithm.
 
@@ -208,8 +178,9 @@ class NetworkFeatureExtractor:
         logger.info("In propagate_network()")
         self._propagate_network_init(diff_type)
 
-        adj = sparse.dok_matrix(np.array(self.ppi_network.graph.get_adjacency().data,
-                                         dtype="float64"))
+        adj = sparse.dok_matrix(
+            np.array(self.ppi_network.graph.get_adjacency().data, dtype="float64")
+        )
         # normalized by the degrees of source and target nodes
         adj = self._normalize_by_degrees(adj)
         return self._walk_randomly(adj, "network_prop_score", 0.5)
@@ -231,8 +202,7 @@ class NetworkFeatureExtractor:
         else:
             vertices.select(is_diff_expressed_eq=True)["network_prop_score"] = 1
 
-    def _normalize_by_degrees(self,
-                              adj: sparse.dok_matrix) -> sparse.dok_matrix:
+    def _normalize_by_degrees(self, adj: sparse.dok_matrix) -> sparse.dok_matrix:
         """Normalize an adjacency matrix based on the node degrees(Vanunu et al).
 
         :param adj: Adjacency matrix to be normalized.
@@ -287,21 +257,26 @@ class NetworkFeatureExtractor:
             for a, b in zip(v1, v2)
         )
 
-
     def _get_diff_expr_vertices(self, diff_type):
+        """ Get the vertices associated with differentially expressed genes.
+
+        :param str diff_type: Differential expression type chosen by the user; all, down, or up.
+        :return: Set of vertices associated with differentially expressed genes.
+        """
         if diff_type == "up":
             return self.ppi_network.graph.vs.select(up_regulated_eq=True)
-
         if diff_type == "down":
             return self.ppi_network.graph.vs.select(down_regulated_eq=True)
-
         return self.ppi_network.graph.vs.select(is_diff_expressed_eq=True)
 
     def _get_diff_expr_key(self, diff_type):
+        """Get the network key of different types of differentially expressed genes.
+
+        :param str diff_type: Differential expression type chosen by the user; all, down, or up.
+        :return: Network key of the inputted diff_type.
+        """
         if diff_type == "up":
             return "up_regulated"
-
         if diff_type == "down":
             return "down_regulated"
-
         return "is_diff_expressed"
