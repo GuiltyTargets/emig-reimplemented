@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import pandas as pd
 from ppi_network_annotation.model.network import Network
-from igraph import Vertex
+from igraph import Vertex, VertexSeq
 from scipy import sparse
 from sklearn.preprocessing import normalize
 from tqdm import tqdm
@@ -115,7 +115,7 @@ class NodeScorer:
             icn_mat[target.index, source.index] = icn_score
         return icn_mat
 
-    def _interconnectivity_edge(self, degrees, edge, key, neighbor_type):
+    def _interconnectivity_edge(self, degrees, edge, key, neighbor_type) -> tuple:
         """Calculate the inteconnectivity score of one edge.
 
         :param degrees: Degrees of all nodes.
@@ -215,7 +215,7 @@ class NodeScorer:
             norm_adj[key] = adj[key] / np.sqrt(dia[0, key[0]] * dia[0, key[1]])
         return norm_adj
 
-    def _walk_randomly(self, adj, score_type, alpha):
+    def _walk_randomly(self, adj, score_type: str, alpha: float = 0.5) -> list:
         """ Randomly walk on the network while updating the visitation probabilities.
 
         :param adj: Normalized adjacency matrix.
@@ -230,9 +230,9 @@ class NodeScorer:
         while self._l1_norm(pt1, pt2) > 10 ** -6:
             pt1 = pt2
             pt2 = self._update_visitation_probabilities(p0, pt1, adj, alpha)
-        return pt2
+        return list(pt2)
 
-    def _update_visitation_probabilities(self, p0, p1, adj, alpha):
+    def _update_visitation_probabilities(self, p0, p1, adj, alpha: float = 0.5) -> np.ndarray:
         """Update the visitation probabilities.
 
         :param p0: scores at time point 0.
@@ -245,7 +245,7 @@ class NodeScorer:
         p2 = (1 - alpha) * adj.dot(p1) + alpha * p0
         return p2
 
-    def _l1_norm(self, v1, v2) -> float:
+    def _l1_norm(self, v1: np.ndarray, v2: np.ndarray) -> float:
         """Calculate the L1 norm of two vectors.
 
         :param v1: Vector 1.
@@ -257,7 +257,7 @@ class NodeScorer:
             for a, b in zip(v1, v2)
         )
 
-    def _get_diff_expr_vertices(self, diff_type):
+    def _get_diff_expr_vertices(self, diff_type: str) -> VertexSeq:
         """ Get the vertices associated with differentially expressed genes.
 
         :param str diff_type: Differential expression type chosen by the user; all, down, or up.
@@ -269,7 +269,7 @@ class NodeScorer:
             return self.ppi_network.graph.vs.select(down_regulated_eq=True)
         return self.ppi_network.graph.vs.select(is_diff_expressed_eq=True)
 
-    def _get_diff_expr_key(self, diff_type):
+    def _get_diff_expr_key(self, diff_type: str) -> str:
         """Get the network key of different types of differentially expressed genes.
 
         :param str diff_type: Differential expression type chosen by the user; all, down, or up.

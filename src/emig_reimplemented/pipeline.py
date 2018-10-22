@@ -57,14 +57,12 @@ def rank_targets(
     # Quit if no differentially expressed genes were found
     if len(network.get_upregulated_genes()) + len(network.get_downregulated_genes()) == 0:
         raise Exception("No differentially expressed genes were found. "
-                        "Please check your input and the parameters in .ini file")
+                        "Please check your input and the parameters.")
 
     # Score nodes using different network-based measures
-    logger.info("Calculating node scores...")
-    if not feature_path or not os.path.exists(feature_path):
-        logger.info('extracting features to %s', feature_path)
-        feature_extractor = NodeScorer(network)
-        feature_extractor.score_nodes(feature_path, diff_type)
+    logger.info('Calculating node scores to write to %s', feature_path)
+    feature_extractor = NodeScorer(network)
+    feature_extractor.score_nodes(feature_path, diff_type)
 
     # Prioritize candidates using R
     logger.info("Prioritizing...")
@@ -74,4 +72,4 @@ def rank_targets(
     ro.r("auc.output.path <- '" + auc_path + "'")
     ro.r("source('{}')".format(os.path.join(r_home, "TargetPrioritization.R")))
 
-    logger.info(f"Target Prioritization - Elapsed time in minutes: {time.time() - start) / 60}")
+    logger.info(f"Target Prioritization - Elapsed time in minutes: {(time.time() - start) / 60}")
