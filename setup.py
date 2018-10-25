@@ -34,7 +34,7 @@ INSTALL_REQUIRES = [
     'scikit-learn',
     'python-igraph',
     'click',
-    'jinja2',
+    'ppi-network-annotation'
 ]
 
 EXTRAS_REQUIRE = {

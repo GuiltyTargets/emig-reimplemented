@@ -16,4 +16,4 @@ jinja2
 
 tqdm
 
--e git+https://github.com/GuiltyTargets/ppi-network-annotation#egg=ppi_network_annotation
+ppi-network-annotation
