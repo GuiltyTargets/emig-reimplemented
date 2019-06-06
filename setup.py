@@ -11,7 +11,7 @@ import setuptools
 #################################################################
 
 PACKAGES = setuptools.find_packages(where='src')
-META_PATH = os.path.join('src', 'gene_prioritization', '__init__.py')
+META_PATH = os.path.join('src', 'emig_reimplemented', '__init__.py')
 KEYWORDS = ['Gene Prioritization', 'Networks Biology',
             'Drug Target Prioritization']
 CLASSIFIERS = [
