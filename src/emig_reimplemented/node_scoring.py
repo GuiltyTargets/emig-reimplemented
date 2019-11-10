@@ -4,6 +4,7 @@
 
 import logging
 
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
 from ppi_network_annotation.model.network import Network
@@ -29,7 +30,7 @@ class NodeScorer:
         self.ppi_network.graph.simplify(combine_edges=min)
         self.neighborhood_network = NeighborhoodNetwork(network)
 
-    def score_nodes(self, feature_path: str, diff_type: str) -> None:
+    def score_nodes(self, diff_type: str) -> pd.DataFrame:
         """Score nodes using all network measures and write to a file.
 
         :param feature_path: Path to write the file.
@@ -41,6 +42,8 @@ class NodeScorer:
         interconnectivity2_scores = self.score_interconnectivity(diff_type, "second-degree")
         random_walk_scores = self.score_by_random_walk(diff_type)
         network_prop_scores = self.score_by_network_propagation(diff_type)
+        local_radiality_scores = self.score_local_radiality(diff_type)
+        print(local_radiality_scores)
 
         df = pd.DataFrame({
             "GeneID": self.ppi_network.graph.vs["name"],
@@ -48,13 +51,15 @@ class NodeScorer:
             "Interconnectivity": interconnectivity2_scores,
             "RandomWalk": random_walk_scores,
             "NetworkProp": network_prop_scores,
+            "LocalRadiality": local_radiality_scores
         })
-
-        logger.info('Writing network to %s', feature_path)
-        df.to_csv(feature_path,
-                  encoding="utf-8",
-                  sep="\t",
-                  index=False)
+        #
+        # logger.info('Writing network to %s', feature_path)
+        # df.to_csv(feature_path,
+        #           encoding="utf-8",
+        #           sep="\t",
+        #           index=False)
+        return df
 
     def score_neighborhood(self) -> list:
         """Score all nodes using neighborhood scoring algorithm.
@@ -130,12 +135,29 @@ class NodeScorer:
         target = self.ppi_network.graph.vs.find(edge.target)
         icn_score = 0
         if edge != -1 and (source[key] or target[key]):
-            overlap = self.neighborhood_network.get_neighborhood_overlap(source, target, neighbor_type)
+            overlap = self.neighborhood_network.get_neighborhood_overlap(source, target,
+                                                                         neighbor_type)
             mult_degrees = degrees[source.index] * degrees[target.index]
             if mult_degrees > 0:
                 icn_score = (2 + len(overlap)) / np.sqrt(mult_degrees)
 
         return icn_score, source, target
+
+    def score_local_radiality(self, diff_type: str = "all") -> list:
+        self.diff_expressed = self._get_diff_expr_vertices(diff_type).indices
+        try:
+            pool = mp.Pool()
+            scores = pool.map(self._local_radiality, self.ppi_network.graph.vs)
+        except:
+            pass
+        finally:
+            pool.close()
+        return scores
+
+    def _local_radiality(self, v):
+        shortest_paths = self.ppi_network.graph.get_shortest_paths(v, to=self.diff_expressed)
+        lengths = [len(path) for path in shortest_paths]
+        return sum(lengths) / len(self.diff_expressed)
 
     def score_by_random_walk(self, diff_type: str = "all") -> list:
         """Score nodes using random walk algorithm (Koehler et al).
